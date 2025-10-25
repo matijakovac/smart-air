@@ -3,13 +3,33 @@
 #include <ArduinoJson.h>
 
 bool loadConfig() {
+  // Check if LittleFS is mounted
+  if (!LittleFS.begin(true)) {
+    Serial.println("❌ Failed to mount LittleFS");
+    return false;
+  }
+  Serial.println("✓ LittleFS mounted");
+  
   if (!LittleFS.exists("/config.json")) {
-    Serial.println("⚠️  Config file not found");
+    Serial.println("⚠️  Config file not found at /config.json");
+    
+    // List files in LittleFS for debugging
+    File root = LittleFS.open("/");
+    File file = root.openNextFile();
+    Serial.println("Files in LittleFS:");
+    while (file) {
+      Serial.printf("  - %s (%d bytes)\n", file.name(), file.size());
+      file = root.openNextFile();
+    }
     
     // Set sensible defaults
     config.wifi_ssid = "YOUR_WIFI";
     config.wifi_password = "YOUR_PASSWORD";
     config.hostname = "cellar-fan";
+    config.use_static_ip = false;
+    config.static_ip = "192.168.0.139";
+    config.gateway = "192.168.0.1";
+    config.subnet = "255.255.255.0";
     config.mqtt_enabled = false;
     config.mqtt_broker = "192.168.1.100";
     config.mqtt_port = 1883;
@@ -31,6 +51,8 @@ bool loadConfig() {
     
     return false;
   }
+  
+  Serial.println("✓ Config file found");
   
   File file = LittleFS.open("/config.json", "r");
   if (!file) {
