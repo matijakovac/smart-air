@@ -34,6 +34,21 @@ void setupWiFi() {
   
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(config.hostname.c_str());
+  
+  // Configure static IP if enabled
+  if (config.use_static_ip) {
+    IPAddress ip, gateway, subnet;
+    ip.fromString(config.static_ip);
+    gateway.fromString(config.gateway);
+    subnet.fromString(config.subnet);
+    
+    if (!WiFi.config(ip, gateway, subnet)) {
+      Serial.println("⚠️  Static IP configuration failed");
+    } else {
+      Serial.printf("  Static IP: %s\n", config.static_ip.c_str());
+    }
+  }
+  
   WiFi.begin(config.wifi_ssid.c_str(), config.wifi_password.c_str());
   
   int attempts = 0;
@@ -213,10 +228,75 @@ void setup() {
   Serial.println("\n✓✓✓ System Ready ✓✓✓\n");
   display.showMessage("System Ready", WiFi.localIP().toString().c_str());
   delay(3000);
+  
+  // Print command help
+  Serial.println("\n📋 SERIAL COMMANDS:");
+  Serial.println("  relay on/off    - Control relay directly");
+  Serial.println("  power XX        - Set dimmer power 0-100%");
+  Serial.println("  auto            - Return to AUTO mode");
+  Serial.println("  status          - Show system status");
+  Serial.println("  sensors         - Show sensor readings");
+  Serial.println();
+}
+
+void handleSerialCommands() {
+  if (!Serial.available()) return;
+  
+  String cmd = Serial.readStringUntil('\n');
+  cmd.trim();
+  cmd.toLowerCase();
+  
+  if (cmd == "relay on") {
+    digitalWrite(PIN_RELAY, LOW);
+    Serial.println("🔌 Relay forced ON (Pin 5 = LOW)");
+    
+  } else if (cmd == "relay off") {
+    digitalWrite(PIN_RELAY, HIGH);
+    Serial.println("🔌 Relay forced OFF (Pin 5 = HIGH)");
+    
+  } else if (cmd.startsWith("power ")) {
+    int power = cmd.substring(6).toInt();
+    if (power < 0) power = 0;
+    if (power > 100) power = 100;
+    fanController.setManualSpeed(power);
+    Serial.printf("💨 Power set to %d%%\n", power);
+    
+  } else if (cmd == "auto") {
+    currentMode = MODE_AUTO;
+    manualOverrideUntil = 0;
+    Serial.println("🔄 Switched to AUTO mode");
+    fanController.update(sensors.getInternalData(), sensors.getExternalData());
+    
+  } else if (cmd == "status") {
+    Serial.println("\n━━━ SYSTEM STATUS ━━━");
+    Serial.printf("Mode: %d\n", currentMode);
+    Serial.printf("Relay Pin 5: %s\n", digitalRead(PIN_RELAY) == LOW ? "ON (LOW)" : "OFF (HIGH)");
+    Serial.printf("WiFi: %s\n", WiFi.isConnected() ? WiFi.localIP().toString().c_str() : "Disconnected");
+    Serial.printf("Uptime: %lu seconds\n", millis() / 1000);
+    Serial.println();
+    
+  } else if (cmd == "sensors") {
+    SensorData internal = sensors.getInternalData();
+    SensorData external = sensors.getExternalData();
+    Serial.println("\n━━━ SENSOR READINGS ━━━");
+    Serial.printf("Internal: %.1f°C, %.1f%%, %.1f hPa %s\n",
+                 internal.temperature, internal.humidity, internal.pressure,
+                 internal.valid ? "✓" : "✗");
+    Serial.printf("External: %.1f°C, %.1f%%, %.1f hPa %s\n",
+                 external.temperature, external.humidity, external.pressure,
+                 external.valid ? "✓" : "✗");
+    Serial.println();
+    
+  } else if (cmd.length() > 0) {
+    Serial.println("❓ Unknown command. Type 'status' or 'sensors' for info.");
+  }
 }
 
 void loop() {
   unsigned long now = millis();
+  
+  // Handle serial commands for debugging
+  handleSerialCommands();
   
   // Handle OTA updates
   ArduinoOTA.handle();

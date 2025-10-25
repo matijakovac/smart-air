@@ -14,7 +14,7 @@ public:
   MQTTManager(SensorManager& sensors, FanController& fan);
   void begin();
   void loop();
-  bool isConnected() const { return mqttClient.connected(); }
+  bool isConnected() { return mqttClient.connected(); }
   
 private:
   WiFiClient wifiClient;

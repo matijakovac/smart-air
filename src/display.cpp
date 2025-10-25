@@ -1,14 +1,18 @@
 #include "display.h"
+#include "config.h"
 
 DisplayManager::DisplayManager() 
-  : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET) {
+  : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET) {
   lastUpdate = 0;
   currentPage = 0;
 }
 
 bool DisplayManager::begin() {
-  // Initialize I2C for OLED on different pins
-  Wire.begin(PIN_OLED_SDA, PIN_OLED_SCL);
+  // Initialize I2C for OLED on Wire1 (separate bus from sensors)
+  // OLED on pins 4 (SDA) and 15 (SCL)
+  Wire1.begin(PIN_OLED_SDA, PIN_OLED_SCL);
+  Wire1.setClock(400000);
+  delay(50);
   
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
     Serial.println("❌ SSD1306 allocation failed");

@@ -51,6 +51,10 @@ bool loadConfig() {
   config.wifi_ssid = doc["wifi"]["ssid"].as<String>();
   config.wifi_password = doc["wifi"]["password"].as<String>();
   config.hostname = doc["wifi"]["hostname"] | "cellar-fan";
+  config.use_static_ip = doc["wifi"]["use_static_ip"] | false;
+  config.static_ip = doc["wifi"]["static_ip"] | "192.168.0.139";
+  config.gateway = doc["wifi"]["gateway"] | "192.168.0.1";
+  config.subnet = doc["wifi"]["subnet"] | "255.255.255.0";
   
   // MQTT
   config.mqtt_enabled = doc["mqtt"]["enabled"] | false;

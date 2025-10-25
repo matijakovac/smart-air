@@ -6,6 +6,12 @@
 #include "config.h"
 #include "sensors.h"
 
+// Forward declaration to help IntelliSense
+#ifndef rbdimmer_channel_t
+struct rbdimmer_channel_s;
+typedef struct rbdimmer_channel_s rbdimmer_channel_t;
+#endif
+
 class FanController {
 public:
   FanController();
@@ -14,6 +20,7 @@ public:
   
   void setMode(ControlMode mode, unsigned long durationMin = 0);
   void setManualSpeed(int speed);
+  void forceUpdate();  // Force immediate state change
   
   int getCurrentSpeed() const { return currentSpeed; }
   RunReason getRunReason() const { return runReason; }

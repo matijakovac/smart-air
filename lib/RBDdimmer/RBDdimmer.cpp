@@ -1,3 +1,4 @@
+// This file is deprecated - use rbdimmerESP32.h instead
 #include "RBDdimmer.h"
 
 static dimmerLamp* dimmer_instance;

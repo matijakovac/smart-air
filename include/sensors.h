@@ -39,6 +39,7 @@ private:
   SensorData internal;
   SensorData external;
   
+  void selectMuxChannel(uint8_t channel);
   void readInternalSensors();
   void readExternalSensors();
 };

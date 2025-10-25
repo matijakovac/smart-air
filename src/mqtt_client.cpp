@@ -193,6 +193,6 @@ String MQTTManager::getDeviceId() const {
   char id[13];
   snprintf(id, sizeof(id), "%04X%08X", 
            (uint16_t)(chipid >> 32), 
-           (uint(uint32_t)chipid);
+           (uint32_t)chipid);
   return String(id);
 }

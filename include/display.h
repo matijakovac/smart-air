@@ -2,9 +2,12 @@
 #define DISPLAY_H
 
 #include <Arduino.h>
+#include <WiFi.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+
+// Note: Display uses Wire2 to avoid conflicts with sensor I2C buses
 #include "config.h"
 #include "sensors.h"
 #include "fancontrol.h"

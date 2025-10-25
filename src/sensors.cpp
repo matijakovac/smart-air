@@ -3,16 +3,27 @@
 #include <math.h>
 
 SensorManager::SensorManager() 
-  : bmp_internal(&Wire), bmp_external(&Wire1) {
+  : bmp_internal(&Wire), bmp_external(&Wire) {
+}
+
+void SensorManager::selectMuxChannel(uint8_t channel) {
+  if (channel > 7) return;
+  Wire.beginTransmission(MUX_ADDR);
+  Wire.write(1 << channel);
+  Wire.endTransmission();
+  delay(10);
 }
 
 bool SensorManager::begin() {
   bool success = true;
   
-  // Initialize internal I2C bus
+  // Initialize internal I2C bus (Wire) with multiplexer
   Wire.begin(PIN_INTERNAL_SDA, PIN_INTERNAL_SCL);
   Wire.setClock(100000);
   delay(100);
+  
+  // Initialize internal sensors on MUX channel 0
+  selectMuxChannel(MUX_CHANNEL_INTERNAL);
   
   if (!aht_internal.begin(&Wire)) {
     Serial.println("❌ Internal AHT20 not found");
@@ -33,12 +44,10 @@ bool SensorManager::begin() {
                             Adafruit_BMP280::STANDBY_MS_500);
   }
   
-  // Initialize external I2C bus (via LTC4311)
-  Wire1.begin(PIN_EXTERNAL_SDA, PIN_EXTERNAL_SCL);
-  Wire1.setClock(100000);
-  delay(100);
+  // Initialize external sensors on MUX channel 1
+  selectMuxChannel(MUX_CHANNEL_EXTERNAL);
   
-  if (!aht_external.begin(&Wire1)) {
+  if (!aht_external.begin(&Wire)) {
     Serial.println("❌ External AHT20 not found");
     success = false;
   } else {
@@ -66,6 +75,7 @@ void SensorManager::update() {
 }
 
 void SensorManager::readInternalSensors() {
+  selectMuxChannel(MUX_CHANNEL_INTERNAL);
   sensors_event_t humidity, temp;
   
   if (aht_internal.getEvent(&humidity, &temp)) {
@@ -82,6 +92,7 @@ void SensorManager::readInternalSensors() {
 }
 
 void SensorManager::readExternalSensors() {
+  selectMuxChannel(MUX_CHANNEL_EXTERNAL);
   sensors_event_t humidity, temp;
   
   if (aht_external.getEvent(&humidity, &temp)) {

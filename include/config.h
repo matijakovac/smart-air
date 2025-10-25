@@ -9,15 +9,19 @@
 #define PIN_DIMMER_PSM 21
 #define PIN_INTERNAL_SDA 19
 #define PIN_INTERNAL_SCL 18
-#define PIN_EXTERNAL_SDA 16
-#define PIN_EXTERNAL_SCL 17
-#define PIN_OLED_SDA 13
-#define PIN_OLED_SCL 12
+// OLED on separate I2C (Wire1) - pins 25 (SDA) and 26 (SCL)
+#define PIN_OLED_SDA 25
+#define PIN_OLED_SCL 26
 
 // I2C Addresses
 #define BMP280_ADDR_INTERNAL 0x77
 #define BMP280_ADDR_EXTERNAL 0x77
 #define OLED_ADDR 0x3C
+#define MUX_ADDR 0x70  // TCA9548A I2C Multiplexer
+
+// Multiplexer Channels
+#define MUX_CHANNEL_INTERNAL 0
+#define MUX_CHANNEL_EXTERNAL 1
 
 // Timing Constants (milliseconds)
 #define SENSOR_READ_INTERVAL 5000
@@ -51,6 +55,10 @@ struct SystemConfig {
   String wifi_ssid;
   String wifi_password;
   String hostname;
+  bool use_static_ip;
+  String static_ip;
+  String gateway;
+  String subnet;
   
   // MQTT
   bool mqtt_enabled;

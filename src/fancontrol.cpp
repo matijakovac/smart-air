@@ -44,7 +44,7 @@ bool FanController::begin() {
     }
   }
   
-  // Create dimmer channel with LINEAR curve (best for motors)
+  // Create dimmer channel with LINEAR curve (best for AC motors)
   rbdimmer_config_t dimmer_config = {
     .gpio_pin = PIN_DIMMER_PSM,
     .phase = 0,
@@ -66,13 +66,7 @@ bool FanController::begin() {
 }
 
 void FanController::update(const SensorData& internal, const SensorData& external) {
-  // Validate sensor data
-  if (!internal.valid || !external.valid) {
-    Serial.println("⚠️ Invalid sensor data - skipping control logic");
-    return;
-  }
-  
-  // Handle manual override modes
+  // Handle manual override modes FIRST - don't require valid sensor data
   if (currentMode == MODE_MANUAL_OFF) {
     setFanSpeed(0, REASON_MANUAL_OVERRIDE);
     return;
@@ -84,6 +78,13 @@ void FanController::update(const SensorData& internal, const SensorData& externa
     return;
   } else if (currentMode == MODE_DIAGNOSTIC) {
     // Diagnostic mode - manual control only
+    return;
+  }
+  
+  // For AUTO mode, validate sensor data
+  if (!internal.valid || !external.valid) {
+    Serial.println("⚠️ Invalid sensor data - stopping fan (AUTO mode)");
+    setFanSpeed(0, REASON_SAFETY_LIMIT);
     return;
   }
   
@@ -218,9 +219,13 @@ bool FanController::checkForcedCirculation() {
 }
 
 void FanController::setFanSpeed(int speed, RunReason reason) {
-  // Anti-short-cycle protection
-  if (speed != currentSpeed && !canChangeState()) {
-    return; // Too soon to change state
+  // Manual override bypasses anti-short-cycle protection
+  bool bypassProtection = (reason == REASON_MANUAL_OVERRIDE);
+  
+  // Anti-short-cycle protection (unless manual override)
+  if (!bypassProtection && speed != currentSpeed && !canChangeState()) {
+    Serial.println("⏱️ Too soon to change state - respecting min run/idle time");
+    return;
   }
   
   // Update speed if changed
@@ -232,9 +237,16 @@ void FanController::setFanSpeed(int speed, RunReason reason) {
     // Set relay
     setRelay(speed > 0);
     
-    // Set dimmer
+    // Set dimmer (use 95% for 100% to avoid fluctuation at full power)
     if (dimmerChannel) {
-      rbdimmer_set_level(dimmerChannel, speed);
+      int dimmerLevel = (speed >= 100) ? 95 : speed;
+      rbdimmer_set_active(dimmerChannel, true);
+      rbdimmer_set_level(dimmerChannel, dimmerLevel);
+      if (speed >= 100) {
+        Serial.println("🔧 Dimmer set to 95% (requested 100% - avoiding fluctuation)");
+      } else {
+        Serial.printf("🔧 Dimmer set to %d%%\n", dimmerLevel);
+      }
     }
     
     // Log change
@@ -246,6 +258,10 @@ void FanController::setRelay(bool state) {
   if (state != relayState) {
     digitalWrite(PIN_RELAY, state ? LOW : HIGH); // Active LOW
     relayState = state;
+    Serial.printf("🔌 Relay %s (Pin %d = %s)\n", 
+                  state ? "ON" : "OFF", 
+                  PIN_RELAY, 
+                  state ? "LOW" : "HIGH");
   }
 }
 
@@ -271,6 +287,31 @@ void FanController::setMode(ControlMode mode, unsigned long durationMin) {
     manualOverrideUntil = 0;
     Serial.printf("⚙️ Mode set to %d (permanent)\n", mode);
   }
+  
+  // Immediately apply manual modes
+  forceUpdate();
+}
+
+void FanController::forceUpdate() {
+  Serial.printf("🔧 Force update - Mode: %d, CurrentSpeed: %d\n", currentMode, currentSpeed);
+  
+  switch (currentMode) {
+    case MODE_MANUAL_OFF:
+      Serial.println("  → Applying MODE_MANUAL_OFF (0%)");
+      setFanSpeed(0, REASON_MANUAL_OVERRIDE);
+      break;
+    case MODE_MANUAL_LOW:
+      Serial.printf("  → Applying MODE_MANUAL_LOW (%d%%)\n", config.low_speed);
+      setFanSpeed(config.low_speed, REASON_MANUAL_OVERRIDE);
+      break;
+    case MODE_MANUAL_HIGH:
+      Serial.printf("  → Applying MODE_MANUAL_HIGH (%d%%)\n", config.high_speed);
+      setFanSpeed(config.high_speed, REASON_MANUAL_OVERRIDE);
+      break;
+    default:
+      Serial.println("  → No immediate action (AUTO/DIAGNOSTIC mode)");
+      break;
+  }
 }
 
 void FanController::setManualSpeed(int speed) {
@@ -278,10 +319,23 @@ void FanController::setManualSpeed(int speed) {
   if (speed > 100) speed = 100;
   
   if (dimmerChannel) {
-    rbdimmer_set_level(dimmerChannel, speed);
+    int dimmerLevel = (speed >= 100) ? 95 : speed;
+    rbdimmer_set_active(dimmerChannel, true);
+    rbdimmer_set_level(dimmerChannel, dimmerLevel);
+    
     currentSpeed = speed;
     setRelay(speed > 0);
-    Serial.printf("🎛️ Manual speed set: %d%%\n", speed);
+    
+    // Set to diagnostic mode to prevent update() from interfering
+    currentMode = MODE_DIAGNOSTIC;
+    runReason = REASON_MANUAL_OVERRIDE;
+    lastStateChange = millis();
+    
+    if (speed >= 100) {
+      Serial.println("🎛️ Manual speed: 100% (triac at 95%)");
+    } else {
+      Serial.printf("🎛️ Manual speed set: %d%%\n", speed);
+    }
   }
 }
 
