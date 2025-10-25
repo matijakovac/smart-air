@@ -1,0 +1,33 @@
+{
+  "wifi": {
+    "ssid": "YOUR_WIFI_SSID",
+    "password": "YOUR_WIFI_PASSWORD",
+    "hostname": "cellar-fan"
+  },
+  "mqtt": {
+    "enabled": false,
+    "broker": "192.168.1.100",
+    "port": 1883,
+    "user": "",
+    "password": ""
+  },
+  "thresholds": {
+    "target_temp": 18.0,
+    "target_humidity": 55.0,
+    "temp_differential": 3.0,
+    "humidity_differential": 10.0,
+    "min_outside_temp": -5.0,
+    "min_cellar_temp": 8.0,
+    "max_dew_point_increase": 3.0
+  },
+  "fan": {
+    "low_speed": 60,
+    "high_speed": 100,
+    "min_run_time_sec": 300,
+    "min_idle_time_sec": 180
+  },
+  "circulation": {
+    "forced_interval_hours": 6,
+    "forced_duration_min": 10
+  }
+}
